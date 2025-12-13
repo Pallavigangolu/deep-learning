@@ -1,0 +1,139 @@
+1)SENTIMENT ANALYSIS USING DISTILBERT PRE-TRAINED TRANSFORMER MODEL  
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline  
+  
+# Load DistilBERT model and tokenizer 
+model_name = "distilbert-baseuncased-finetuned-sst-2-english" 
+tokenizer = AutoTokenizer.from_pretrained(model_name) model = 
+AutoModelForSequenceClassification.from_pretrained(model_name)  
+  
+# Create sentiment analysis pipeline  
+sentiment_pipeline = pipeline("sentiment-analysis", model=model, tokenizer=tokenizer)  
+  
+# Sample texts texts 
+= [  
+    "I love using deep learning models!",  
+    "The movie was terrible and boring.",  
+    "The service was okay, not too great but not bad either."  
+]  
+  
+# Perform sentiment analysis for text in texts:  
+    result = sentiment_pipeline(text)[0]     
+print(f"Text: {text}")  
+    print(f"Label: {result['label']}, Score: {result['score']:.4f}\n")  
+
+TEXT-TO-SPEECH CONVERSION USING SUNO BARK TRANSFORMER MODEL  
+from transformers import AutoProcessor, BarkModel 
+import torch import scipy.io.wavfile  
+import numpy as np  
+  
+# Load processor and model processor = 
+AutoProcessor.from_pretrained("suno/bark-small") model = 
+BarkModel.from_pretrained("suno/bark-small")  
+  
+# Input text  text_prompt = "Welcome to the world of Deep Learning. This is a text-to-speech conversion 
+using the Bark Transformer model."  
+  
+# Preprocess input  inputs = processor(text_prompt, return_tensors="pt")  
+  
+# Generate audio with torch.no_grad():  
+    audio_array = model.generate(**inputs)  
+  
+# Convert to NumPy and save  audio_array = audio_array.cpu().numpy().squeeze() scipy.io.wavfile.write("bark_output.wav", 
+ rate=model.generation_config.sample_rate, data=audio_array)  print("Speech has been successfully generated and saved as 'bark_output.wav'")  OUTPUT:  
+   
+3) SENTIMENT ANALYSIS, SUMMARIZATION, AND TEXT-TO-SPEECH ON ONLINE CNN/DAILYMAIL DATASET  
+from datasets import load_dataset from transformers import 
+pipeline, BarkModel, AutoProcessor import torch, scipy.io.wavfile  
+  
+dataset = load_dataset("cnn_dailymail", "3.0.0", split="test[:1%]") sample_text = dataset[0]['article']  
+  
+sentiment_pipeline = pipeline("sentiment-analysis",  
+model="distilbert-base-uncasedfinetuned-sst-2-english") 
+sentiment_result = sentiment_pipeline(sample_text[:512])[0]
+print("Sentiment:", sentiment_result)  
+  
+summarizer = pipeline("summarization", model="facebook/bart-large-cnn") 
+summary = summarizer(sample_text, max_length=120, min_length=30, do_sample=False)[0]['summary_text']  
+print("\nSummary:\n", summary)  
+  
+processor = AutoProcessor.from_pretrained("suno/bark-small") 
+bark_model = BarkModel.from_pretrained("suno/bark-small")  
+  
+inputs = processor(summary, return_tensors="pt") with 
+torch.no_grad():  
+    audio_array = bark_model.generate(**inputs)  
+  
+audio_array = audio_array.cpu().numpy().squeeze() 
+scipy.io.wavfile.write("cnn_summary_speech.wav", 
+rate=bark_model.generation_config.sample_rate, data=audio_array)  
+print("\nSpeech file 'cnn_summary_speech.wav' generated successfully.")  
+
+4) SENTIMENT ANALYSIS, SUMMARIZATION, AND TEXT-TO-SPEECH ON  
+LOCAL TEXT DATASET   
+from transformers import pipeline, BarkModel, AutoProcessor import 
+torch, scipy.io.wavfile  
+local_dataset = [  
+    "Artificial Intelligence is changing the world and making life easier with automation.",  
+    "The product was disappointing and not worth the money spent.",  
+    "Climate change is a global concern that needs immediate attention from all nations."  
+] 
+sentiment_pipeline=pipeline("sentiment-analysis", model="distilbert-base-uncasedfinetunedsst-2-english") 
+summarizer = pipeline("summarization", model="facebook/bartlarge-cnn") 
+processor = AutoProcessor.from_pretrained("suno/bark-small") 
+bark_model = BarkModel.from_pretrained("suno/bark-small")  
+  
+for i, text in enumerate(local_dataset):  
+    print(f"\n--- Text {i+1} ---")    
+ sentiment = sentiment_pipeline(text)[0]     
+ print(f"Sentiment: {sentiment['label']} (Score: {sentiment['score']:.4f})")  
+ summary=summarizer(text,max_length=40,min_length=10, 
+ do_sample=False)[0]['summary_text']  
+    print(f"Summary: {summary}")  
+      
+inputs = processor(summary, return_tensors="pt")     
+ with torch.no_grad():  
+   audio_array = bark_model.generate(**inputs)     
+  audio_array = audio_array.cpu().numpy().squeeze()     
+  scipy.io.wavfile.write(f"local_text_{i+1}.wav", 
+  rate=bark_model.generation_config.sample_rate, data=audio_array)    
+  print(f"Speech file 'local_text_{i+1}.wav' generated successfully.")  
+     
+5) SENTIMENT ANALYSIS, SUMMARIZATION, AND TEXT-TO-SPEECH FOR EACH TEXT IN LOCAL DATASET  
+from transformers import pipeline, BarkModel, AutoProcessor import 
+torch, scipy.io.wavfile  
+local_dataset = [  
+    "Artificial Intelligence is changing the world and making life easier with automation.",  
+    "The product was disappointing and not worth the money spent.",  
+    "Climate change is a global concern that needs immediate attention from all nations."  
+]  
+sentiment_pipeline = pipeline("sentiment-analysis",  model="distilbert-base-uncasedfinetuned-sst-2-english") 
+summarizer = pipeline("summarization", model="facebook/bart-large-cnn") 
+processor = AutoProcessor.from_pretrained("suno/barksmall") 
+bark_model = BarkModel.from_pretrained("suno/bark-small")  
+ 
+for i, text in enumerate(local_dataset):  
+    print(f"\n--- Text {i+1} ---")    
+  sentiment = sentiment_pipeline(text)[0]     
+  print(f"Sentiment: {sentiment['label']}
+  (Score: {sentiment['score']:.4f})")  
+    summary=summarizer(text,max_length=40,min_length=10,     
+   do_sample=False)[0]['summary_text']      
+   print(f"Summary: {summary}")     
+   inputs = processor(summary, return_tensors="pt")     
+with torch.no_grad():  
+   audio_array = bark_model.generate(**inputs)     
+  audio_array = audio_array.cpu().numpy().squeeze()     
+  scipy.io.wavfile.write(f"local_text_{i+1}.wav", 
+ rate=bark_model.generation_config.sample_rate, data=audio_array)    
+ print(f"Speech file 'local_text_{i+1}.wav' generated successfully.")  
+
+  
+  
+ 
+ 
+ 
+ 
+ 
+ 
+  
+
