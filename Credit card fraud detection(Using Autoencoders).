@@ -1,0 +1,276 @@
+import pandas as pd
+data = pd.read_csv('/content/creditcard.csv')
+print(data)
+data.info()
+data.isnull()
+
+# Remove  fraud labels
+x = data.drop(columns=['Class'])
+normal_data = data[data['Class'] == 0]
+X_train = normal_data.drop(columns=['Class'])
+from sklearn.preprocessing import StandardScaler
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_scaled = scaler.transform(x)
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, Dense
+
+input_dim = X_train_scaled.shape[1]
+input_layer = Input(shape=(input_dim,))
+encoded = Dense(14, activation='relu')(input_layer)
+encoded = Dense(7, activation='relu')(encoded)
+decoded = Dense(14, activation='relu')(encoded)
+decoded = Dense(input_dim, activation='linear')(decoded)
+
+autoencoder = Model(input_layer, decoded)
+autoencoder.compile(optimizer='adam', loss='mse')
+autoencoder.fit(
+    X_train_scaled,
+    X_train_scaled,
+    epochs=20,
+    batch_size=256,
+    validation_split=0.1,
+    shuffle=True
+)
+import numpy as np
+reconstructions = autoencoder.predict(X_scaled)
+mse = np.mean(np.square(X_scaled - reconstructions), axis=1)
+
+threshold = np.percentile(mse, 95)
+anomalies = mse > threshold
+from sklearn.metrics import classification_report
+y_true = data['Class']
+y_pred = anomalies.astype(int)
+
+# Identify valid (non-NaN) indices in y_true
+valid_indices = y_true.dropna().index
+
+# Filter y_true and y_pred to only include valid entries
+y_true_filtered = y_true.loc[valid_indices]
+y_pred_filtered = y_pred[valid_indices]
+print(classification_report(y_true_filtered, y_pred_filtered))
+import matplotlib.pyplot as plt
+plt.hist(mse, bins=50)
+plt.xlabel("Reconstruction Error")
+plt.ylabel("Frequency")
+plt.show()
+
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import classification_report
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, Dense, LSTM, RepeatVector, TimeDistributed
+from tensorflow.keras import regularizers
+data = pd.read_csv('/content/creditcard.csv')
+
+X = data.drop(columns=['Class'])
+y = data['Class']
+
+# Train only on normal data
+X_train = X[y == 0]
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_all = scaler.transform(X)
+input_dim = X_train.shape[1]
+input_layer = Input(shape=(input_dim,))
+
+encoded = Dense(16, activation='relu')(input_layer)
+decoded = Dense(input_dim, activation='linear')(encoded)
+model_basic = Model(input_layer, decoded)
+model_basic.compile(optimizer='adam', loss='mse')
+model_basic.fit(X_train, X_train, epochs=20, batch_size=256, shuffle=True)
+encoded = Dense(32, activation='relu')(input_layer)
+encoded = Dense(16, activation='relu')(encoded)
+encoded = Dense(8, activation='relu')(encoded)
+decoded = Dense(16, activation='relu')(encoded)
+decoded = Dense(32, activation='relu')(decoded)
+decoded = Dense(input_dim, activation='linear')(decoded)
+
+model_deep = Model(input_layer, decoded)
+model_deep.compile(optimizer='adam', loss='mse')
+model_deep.fit(X_train, X_train, epochs=30, batch_size=256)
+encoded = Dense(32, activation='relu', activity_regularizer=regularizers.l1(1e-5))(input_layer)
+encoded = Dense(16, activation='relu')(encoded)
+decoded = Dense(input_dim, activation='linear')(encoded)
+model_sparse = Model(input_layer, decoded)
+model_sparse.compile(optimizer='adam', loss='mse')
+model_sparse.fit(X_train, X_train, epochs=30, batch_size=256)
+
+noise_factor = 0.05
+X_train_noisy = X_train + noise_factor * np.random.normal(size=X_train.shape)
+encoded = Dense(32, activation='relu')(input_layer)
+encoded = Dense(16, activation='relu')(encoded)
+decoded = Dense(input_dim, activation='linear')(encoded)
+model_denoise = Model(input_layer, decoded)
+model_denoise.compile(optimizer='adam', loss='mse')
+model_denoise.fit(X_train_noisy, X_train, epochs=30, batch_size=256)
+from tensorflow.keras.layers import Lambda
+from tensorflow.keras import backend as K
+
+latent_dim = 10
+h = Dense(32, activation='relu')(input_layer)
+z_mean = Dense(latent_dim)(h)
+z_log_var = Dense(latent_dim)(h)
+
+def sampling(args):
+    z_mean, z_log_var = args
+    return z_mean + K.exp(0.5 * z_log_var) * K.random_normal(shape=K.shape(z_mean))
+z = Lambda(sampling)([z_mean, z_log_var])
+decoder = Dense(input_dim, activation='linear')
+output = decoder(z)
+
+vae = Model(input_layer, output)
+vae.compile(optimizer='adam', loss='mse')
+vae.fit(X_train, X_train, epochs=30, batch_size=256)
+X_lstm = X_train.reshape(X_train.shape[0], 1, X_train.shape[1])
+
+inputs = Input(shape=(1, input_dim))
+encoded = LSTM(32, activation='relu')(inputs)
+decoded = RepeatVector(1)(encoded)
+decoded = LSTM(input_dim, activation='relu', return_sequences=True)(decoded)
+
+model_lstm = Model(inputs, decoded)
+model_lstm.compile(optimizer='adam', loss='mse')
+model_lstm.fit(X_lstm, X_lstm, epochs=30, batch_size=128)
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+
+def get_metrics(model, X_all, y_true):
+    recon = model.predict(X_all)
+    mse = np.mean(np.square(X_all - recon), axis=1)
+    threshold = np.percentile(mse, 95)
+    y_pred = (mse > threshold).astype(int)
+
+    # Filter y_true and y_pred to only include valid entries, as y_true may contain NaN values.
+    valid_indices = y_true.dropna().index
+    y_true_filtered = y_true.loc[valid_indices]
+    y_pred_filtered = y_pred[valid_indices]
+
+    # Calculate metrics
+    accuracy = accuracy_score(y_true_filtered, y_pred_filtered)
+    precision = precision_score(y_true_filtered, y_pred_filtered, zero_division=0)
+    recall = recall_score(y_true_filtered, y_pred_filtered, zero_division=0)
+    f1 = f1_score(y_true_filtered, y_pred_filtered, zero_division=0)
+    print(classification_report(y_true_filtered, y_pred_filtered))
+    return accuracy, precision, recall, f1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
